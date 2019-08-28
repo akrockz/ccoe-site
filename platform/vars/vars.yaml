@@ -1,0 +1,4 @@
+_defaults:
+  KeyName: sample_key
+  InstanceType: t2.small
+  ImageId: amazon-linux-latest
