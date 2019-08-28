@@ -1,0 +1,44 @@
+web:
+  Type: AWS::Instance
+  Configuration:
+    Instance:
+      Pipeline::Security:
+        - { Allow: 'TCP:80', Source: intranet }
+        - { Allow: 'TCP:22', Source: bastion }
+      Properties:
+        KeyName: {{ vars.KeyName }}
+        ImageId:
+          Fn::Pipeline::ImageId:
+            Name: {{ vars.ImageId }}
+        InstanceType: {{ vars.InstanceType }}
+        SubnetId:
+          Fn::Pipeline::SubnetId:
+            NetworkZone: private
+      Metadata:
+        AWS::CloudFormation::Init:
+          config:
+            packages:
+              yum:
+                httpd: []
+                # golang: [] # not needed, static html compiled during package step
+            sources:
+              /var/www/html:
+                Fn::Pipeline::FileUrl:
+                  Path: public.tar.gz
+              /home/ec2-user/scripts:
+                Fn::Pipeline::FileUrl:
+                  Path: scripts.tar.gz
+            commands:
+              01-setup-cron-env:
+                command: 'chmod +x /home/ec2-user/scripts/*'
+              02-setup-cron-command:
+                command: 'echo "*/15 * * * * /home/ec2-user/scripts/download-core-automation-docs.sh" >> /tmp/crontab.txt'
+              03-save-cron:
+                command: 'crontab -u ec2-user /tmp/crontab.txt'
+              04-run-cmd-now:
+                command: 'sudo su - ec2-user /home/ec2-user/scripts/download-core-automation-docs.sh'
+            services:
+              sysvinit:
+                httpd:
+                  enabled: true
+                  ensureRunning: true
